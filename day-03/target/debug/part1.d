@@ -1,0 +1,1 @@
+C:\Users\FelixHankel\Documents\AoC2023Rust\day-03\target\debug\part1.exe: C:\Users\FelixHankel\Documents\AoC2023Rust\day-03\src\bin\input.txt C:\Users\FelixHankel\Documents\AoC2023Rust\day-03\src\bin\part1.rs
