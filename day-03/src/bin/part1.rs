@@ -61,7 +61,8 @@ fn main() {
 }
 
 fn process(input: &str) -> String {
-    let objects = parse_grid(Span::new(input)).unwrap().1;
+    let changed_input = input.replace("\r\n", ".\r\n");
+    let objects = parse_grid(Span::new(&changed_input)).unwrap().1;
     let symbol_map = objects
         .iter()
         .filter_map(|value| match value {
@@ -114,16 +115,7 @@ mod tests {
 
     #[test]
     fn test_process() {
-        let input = "467..114..
-...*......
-..35..633.
-......#...
-617*......
-.....+.58.
-..592.....
-......755.
-...$.*....
-.664.598..";
+        let input = "467..114..\n...*......\n..35..633.\n......#...\n617*......\n.....+.58.\n..592.....\n......755.\n...$.*....\n.664.598..";
         assert_eq!(process(input), "4361");
     }
 }

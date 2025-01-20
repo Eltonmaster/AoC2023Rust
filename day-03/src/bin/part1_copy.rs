@@ -1,9 +1,11 @@
-use std::collections::HashSet;
+use core::num;
+use std::collections::{HashMap, HashSet};
+use itertools::Itertools;
 
 use glam::IVec2;
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, take_till1},
+    bytes::complete::{is_not, take_till1, tag},
     character::complete::digit1,
     combinator::iterator,
     IResult, Parser,
@@ -33,11 +35,11 @@ fn parse_grid(input: Span) -> IResult<Span, Vec<Value>> {
             digit1
                 .map(|span| with_xy(span))
                 .map(Value::Number),
-            is_not(".\n0123456789")
+            tag("*")
                 .map(|span| with_xy(span))
                 .map(Value::Symbol),
             take_till1(|c: char| {
-                c.is_ascii_digit() || c != '.' && c != '\n'
+                c.is_ascii_digit() ||  c == '*'
             })
             .map(|_| Value::Empty),
         )),
@@ -51,58 +53,70 @@ fn parse_grid(input: Span) -> IResult<Span, Vec<Value>> {
     res.map(|(input, _)| (input, parsed))
 }
 
+
+const POSITIONS: [IVec2; 8] = [
+    IVec2::new(0,1),
+    IVec2::new(0, -1),
+    IVec2::new(1, 0),
+    IVec2::new(1, 1),
+    IVec2::new(1, -1),
+    IVec2::new(-1, 0),
+    IVec2::new(-1, 1),
+    IVec2::new(-1, -1),
+];
+
 pub fn process(
     input: &str,
 ) -> String {
-    let objects = parse_grid(Span::new(input)).unwrap().1;
+    let changed_input = input.replace("\r\n", ".\r\n");
+    let objects = parse_grid(Span::new(&changed_input)).unwrap().1;
 
-    let symbol_map = objects
+    let number_map = objects
         .iter()
         .filter_map(|value| match value {
             Value::Empty => None,
-            Value::Symbol(sym) => Some(sym.extra),
-            Value::Number(_) => None,
+            Value::Symbol(_) => None,
+            Value::Number(num) => Some((
+                num.extra,
+                num.fragment(),
+                num.location_offset()
+            )),
         })
-        .collect::<HashSet<IVec2>>();
+        .flat_map(|(ivec, fragment, id)| {
+            (ivec.x..(ivec.x + fragment.len() as i32)).map(
+                move |x| {
+                    (IVec2::new(x, ivec.y), (id, fragment))
+                },
+            )
+        }).collect::<HashMap<IVec2, (usize, &&str)>>();
 
-    let result = objects
+        let result = objects
         .iter()
         .filter_map(|value| {
-            let Value::Number(num) = value else {
+            let Value::Symbol(sym) = value else {
                 return None;
             };
-            let surrounding_positions = [
-                // east border
-                IVec2::new(num.fragment().len() as i32, 0),
-                // west border
-                IVec2::new(-1, 0),
-            ]
-            .into_iter()
-            .chain(
-                // north border
-                (-1..=num.fragment().len() as i32).map(
-                    |x_offset| IVec2::new(x_offset, 1),
-                ),
-            )
-            .chain(
-                // south border
-                (-1..=num.fragment().len() as i32).map(
-                    |x_offset| IVec2::new(x_offset, -1),
-                ),
-            )
-            .map(|pos| pos + num.extra)
-            .collect::<Vec<IVec2>>();
-
-            surrounding_positions
+            let matching_numbers = POSITIONS
                 .iter()
-                .any(|pos| symbol_map.contains(pos))
-                .then_some(
-                    num.fragment()
-                        .parse::<u32>()
-                        .expect("should be a valid number"),
-                )
+                .map(|pos| *pos + sym.extra)
+                .filter_map(|surrounding_symbol_position| {
+                    number_map
+                        .get(&surrounding_symbol_position)
+                })
+                .unique()
+                .map(|(_, fragment)| {
+                    fragment
+                        .parse::<i32>()
+                        .expect("should be a valid number")
+                })
+                .collect::<Vec<i32>>();
+
+            (matching_numbers.len() == 2).then_some(
+                matching_numbers.iter().product::<i32>(),
+            )
         })
-        .sum::<u32>();
+        .sum::<i32>();
+
 
     result.to_string()
     }

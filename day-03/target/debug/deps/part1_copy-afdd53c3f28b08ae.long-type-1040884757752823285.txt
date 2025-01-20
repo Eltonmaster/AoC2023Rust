@@ -1,0 +1,1 @@
+FilterMap<std::iter::Map<std::slice::Iter<'_, IVec2>, {closure@src\bin\part1_copy.rs:100:22: 100:27}>, {closure@src\bin\part1_copy.rs:101:29: 101:58}>
